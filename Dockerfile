@@ -2,21 +2,23 @@
 
 # ---------- 1) Build del frontend (Vite) ----------
 FROM node:20-alpine AS client-build
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
 WORKDIR /app/client
-COPY client/package*.json ./
-RUN npm ci
+COPY client/package.json ./
+RUN pnpm install --no-frozen-lockfile
 COPY client/ ./
-RUN npm run build
+RUN pnpm run build
 
 # ---------- 2) Backend + build del frontend embebido ----------
 FROM node:20-alpine AS server
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
 WORKDIR /app/server
 
 # better-sqlite3 compila un binding nativo; se necesitan herramientas de build en Alpine.
 RUN apk add --no-cache python3 make g++
 
-COPY server/package*.json ./
-RUN npm ci --omit=dev
+COPY server/package.json ./
+RUN pnpm install --no-frozen-lockfile --prod
 
 COPY server/ ./
 COPY --from=client-build /app/client/dist /app/client/dist

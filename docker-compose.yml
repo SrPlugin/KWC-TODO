@@ -2,9 +2,8 @@ services:
   app:
     build: .
     image: kwc-todo:latest
+    container_name: kwc_todo_app
     restart: unless-stopped
-    ports:
-      - "4000:4000"
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -19,6 +18,27 @@ services:
       # SEED_DEMO_USERS: "false"
     volumes:
       - kwc_data:/app/server/data
+    networks: [traefik_net]
+    expose: ["4000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "traefik_net"
+      traefik.http.routers.kwc-todo.rule: "Host(`todokwc.bytetechdev.com`)"
+      traefik.http.routers.kwc-todo.entrypoints: "websecure"
+      traefik.http.routers.kwc-todo.tls.certresolver: "letsencrypt"
+      traefik.http.routers.kwc-todo.priority: "1"
+      traefik.http.routers.kwc-todo.middlewares: "kwc-todo-secure-headers@file,kwc-todo-compress@file"
+      traefik.http.services.kwc-todo.loadbalancer.server.port: "4000"
 
 volumes:
   kwc_data:
+
+networks:
+  traefik_net:
+    external: true
