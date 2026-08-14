@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext';
 import { socket } from '../socket';
 import { createTask, deleteTask, fetchTasks, updateTask } from '../api';
 import type { Priority, Status, Task, TeamRole } from '../types';
-import { ROLE_LABELS, TEAM_ROLES } from '../types';
+import { ROLE_LABELS, assignableRolesFor } from '../types';
 import Column from './Column';
 import TaskModal from './TaskModal';
 import DateRangeFilter from './DateRangeFilter';
@@ -22,7 +22,8 @@ export default function Board() {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [modalTask, setModalTask] = useState<Task | 'new' | null>(null);
 
-  const canManageAllRoles = user?.role === 'dueno' || user?.role === 'administracion' || user?.role === 'operador';
+  const assignableRoles = assignableRolesFor(user?.role);
+  const canManageAllRoles = assignableRoles.length > 1;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const load = useCallback(async () => {
@@ -111,7 +112,7 @@ export default function Board() {
       <div className="board-toolbar">
         {canManageAllRoles && (
           <div className="role-tabs">
-            {(['todos', ...TEAM_ROLES] as RoleFilter[]).map((r) => (
+            {(['todos', ...assignableRoles] as RoleFilter[]).map((r) => (
               <button
                 key={r}
                 className={`role-tab ${roleFilter === r ? 'role-tab-active' : ''}`}
@@ -154,7 +155,7 @@ export default function Board() {
       {modalTask && (
         <TaskModal
           task={modalTask === 'new' ? null : modalTask}
-          canChooseRole={canManageAllRoles}
+          assignableRoles={assignableRoles}
           onClose={() => {
             setModalTask(null);
             load();

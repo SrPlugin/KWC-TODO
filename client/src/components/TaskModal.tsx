@@ -11,11 +11,11 @@ import {
   sendMessage,
   uploadAttachments,
 } from '../api';
-import { ROLE_LABELS, TEAM_ROLES } from '../types';
+import { ROLE_LABELS } from '../types';
 
 interface Props {
   task: Task | null; // null = creando nueva
-  canChooseRole: boolean;
+  assignableRoles: TeamRole[];
   onClose: () => void;
   onSave: (payload: {
     title: string;
@@ -37,15 +37,15 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function TaskModal({ task, canChooseRole, onClose, onSave, onDelete }: Props) {
+export default function TaskModal({ task, assignableRoles, onClose, onSave, onDelete }: Props) {
   const { user } = useAuth();
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [priority, setPriority] = useState<Priority>(task?.priority ?? 'media');
   const [dueDate, setDueDate] = useState(task?.due_date ?? '');
-  const defaultRole: TeamRole = TEAM_ROLES.includes(user?.role as TeamRole) ? (user!.role as TeamRole) : 'administracion';
-  const [role, setRole] = useState<TeamRole>(task?.role ?? defaultRole);
+  const canChooseRole = assignableRoles.length > 1;
+  const [role, setRole] = useState<TeamRole>(task?.role ?? assignableRoles[0] ?? 'administracion');
   const [assignMode, setAssignMode] = useState<AssignMode>(task?.assigned_to ? 'user' : 'team');
   const [assignedUserId, setAssignedUserId] = useState<number | null>(task?.assigned_to ?? null);
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
@@ -256,7 +256,7 @@ export default function TaskModal({ task, canChooseRole, onClose, onSave, onDele
                   <label className="field">
                     <span>Rol destino</span>
                     <select value={role} onChange={(e) => setRole(e.target.value as TeamRole)}>
-                      {TEAM_ROLES.map((r) => (
+                      {assignableRoles.map((r) => (
                         <option key={r} value={r}>
                           {ROLE_LABELS[r]}
                         </option>
@@ -271,7 +271,7 @@ export default function TaskModal({ task, canChooseRole, onClose, onSave, onDele
                       <label className="field">
                         <span>Rol</span>
                         <select value={role} onChange={(e) => setRole(e.target.value as TeamRole)}>
-                          {TEAM_ROLES.map((r) => (
+                          {assignableRoles.map((r) => (
                             <option key={r} value={r}>
                               {ROLE_LABELS[r]}
                             </option>

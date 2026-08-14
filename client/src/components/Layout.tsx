@@ -25,6 +25,7 @@ export default function Layout() {
           <span className="login-dot" />
           <h1>KWC INC S.A</h1>
         </div>
+        <h2 className="topbar-title">ADMINISTRADOR DE TAREAS</h2>
         <div className="topbar-user">
           <NotificationBell />
           <div className="topbar-user-info">

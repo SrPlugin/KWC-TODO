@@ -149,46 +149,64 @@ function requireOwner(req, res, next) {
   next();
 }
 
-// Roles "gestores": Administración y Operador se supervisan mutuamente y además
-// gestionan Bodega por completo (como el Dueño, sin restricción por asignado).
-// Bodega en cambio solo ve lo suyo: tareas sin asignar del equipo, o asignadas a él mismo.
-const MANAGER_ROLES = ['administracion', 'operador'];
-
-function rolesVisibleTo(user) {
+// Roles que un usuario supervisa por completo, sin importar quién creó/asignó la tarea.
+// Solo Gerencia supervisa las 3 áreas. Administración y Operador supervisan Bodega
+// (la ven, gestionan y crean tareas ahí), pero no se supervisan entre sí.
+function supervisedRoles(user) {
   if (user.role === 'dueno') return TEAM_ROLES;
-  if (MANAGER_ROLES.includes(user.role)) return TEAM_ROLES;
-  return [user.role]; // bodega (u otro rol restringido futuro)
+  if (user.role === 'administracion' || user.role === 'operador') return ['bodega'];
+  return [];
 }
 
-// A qué roles puede crear/asignar tareas un usuario. Dueño, Administración y Operador
-// pueden asignar a cualquiera de las tres áreas; un rol restringido solo a la suya.
+// A qué roles puede crear/asignar tareas un usuario. Gerencia a cualquiera de las 3.
+// Administración y Operador pueden asignarse tareas entre sí y a Bodega.
+// Bodega solo puede crear/asignar dentro de su propia área.
 function assignableRoles(user) {
-  if (user.role === 'dueno' || MANAGER_ROLES.includes(user.role)) return TEAM_ROLES;
+  if (user.role === 'dueno') return TEAM_ROLES;
+  if (user.role === 'administracion') return ['administracion', 'operador', 'bodega'];
+  if (user.role === 'operador') return ['operador', 'administracion', 'bodega'];
   return [user.role];
 }
 
-// Un usuario puede ver/editar una tarea si: es el dueño, o es Administración/Operador
-// (ven y gestionan las tres áreas sin restricción de asignado), o la tarea es de su
-// propio rol y (no tiene asignado específico, o el asignado es él mismo).
+// Un usuario puede ver/editar una tarea si es Gerencia, si supervisa el área de la tarea
+// (ej. Administración/Operador sobre Bodega), o si la tarea es propia: la creó él o
+// está asignada a él. Ya no hay visibilidad "de equipo" sobre tareas sin asignar de otros.
 function canAccessTask(user, task) {
-  if (user.role === 'dueno' || MANAGER_ROLES.includes(user.role)) return true;
-  if (user.role !== task.role) return false;
-  return !task.assigned_to || task.assigned_to === user.id;
+  if (user.role === 'dueno') return true;
+  if (supervisedRoles(user).includes(task.role)) return true;
+  return task.created_by === user.id || task.assigned_to === user.id;
 }
 
+// Construye el WHERE de /api/tasks y /api/kpis según lo que el usuario puede ver:
+// Gerencia ve todo (opcionalmente filtrado por rol). Cualquier otro ve las tareas de
+// sus roles supervisados completas, más las propias (creadas o asignadas a él),
+// opcionalmente acotado por el tab de rol seleccionado en el cliente.
 function roleScope(user, roleParam) {
-  const visible = rolesVisibleTo(user);
-  if (roleParam && visible.includes(roleParam)) {
-    return { clause: 'tasks.role = ?', params: [roleParam] };
-  }
-  if (visible.length === TEAM_ROLES.length) {
+  if (user.role === 'dueno') {
+    if (roleParam && TEAM_ROLES.includes(roleParam)) {
+      return { clause: 'tasks.role = ?', params: [roleParam] };
+    }
     return { clause: '1=1', params: [] };
   }
-  // Rol restringido (ej. bodega): solo ve tareas sin asignar del equipo o asignadas a él mismo.
-  return {
-    clause: 'tasks.role = ? AND (tasks.assigned_to IS NULL OR tasks.assigned_to = ?)',
-    params: [user.role, user.id],
-  };
+
+  const supervised = supervisedRoles(user);
+  const parts = [];
+  const params = [];
+  if (supervised.length) {
+    parts.push(`tasks.role IN (${supervised.map(() => '?').join(',')})`);
+    params.push(...supervised);
+  }
+  parts.push('tasks.created_by = ?');
+  params.push(user.id);
+  parts.push('tasks.assigned_to = ?');
+  params.push(user.id);
+
+  let clause = `(${parts.join(' OR ')})`;
+  if (roleParam && TEAM_ROLES.includes(roleParam)) {
+    clause += ' AND tasks.role = ?';
+    params.push(roleParam);
+  }
+  return { clause, params };
 }
 
 // --- Auth ---
@@ -602,17 +620,42 @@ app.post('/api/tasks/:taskId/messages', requireUser, loadTaskForAttachment, (req
 // --- Historial diario ---
 app.get('/api/history', requireUser, (req, res) => {
   const { role: roleParam, from, to } = req.query;
-  const visible = rolesVisibleTo(req.user);
-  const scope =
-    roleParam && visible.includes(roleParam)
-      ? { clause: 'task_history.role = ?', params: [roleParam] }
-      : visible.length === TEAM_ROLES.length
-        ? { clause: '1=1', params: [] }
-        : { clause: 'task_history.role IN (' + visible.map(() => '?').join(',') + ')', params: visible };
+  const user = req.user;
+
+  let scope;
+  if (user.role === 'dueno') {
+    scope =
+      roleParam && TEAM_ROLES.includes(roleParam)
+        ? { clause: 'task_history.role = ?', params: [roleParam] }
+        : { clause: '1=1', params: [] };
+  } else {
+    const supervised = supervisedRoles(user);
+    const parts = [];
+    const params = [];
+    if (supervised.length) {
+      parts.push(`task_history.role IN (${supervised.map(() => '?').join(',')})`);
+      params.push(...supervised);
+    }
+    parts.push('task_history.user_id = ?');
+    params.push(user.id);
+    parts.push('tasks.created_by = ?');
+    params.push(user.id);
+    parts.push('tasks.assigned_to = ?');
+    params.push(user.id);
+
+    let clause = `(${parts.join(' OR ')})`;
+    if (roleParam && TEAM_ROLES.includes(roleParam)) {
+      clause += ' AND task_history.role = ?';
+      params.push(roleParam);
+    }
+    scope = { clause, params };
+  }
 
   let sql = `
     SELECT task_history.*, COALESCE(users.name, 'Usuario eliminado') AS user_name
-    FROM task_history LEFT JOIN users ON users.id = task_history.user_id
+    FROM task_history
+    LEFT JOIN users ON users.id = task_history.user_id
+    LEFT JOIN tasks ON tasks.id = task_history.task_id
     WHERE ${scope.clause}
   `;
   const params = [...scope.params];

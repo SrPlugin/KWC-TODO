@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { fetchHistory } from '../api';
 import type { HistoryEntry, TeamRole } from '../types';
-import { ACTION_LABELS, ROLE_LABELS, STATUS_LABELS, TEAM_ROLES } from '../types';
+import { ACTION_LABELS, ROLE_LABELS, STATUS_LABELS, assignableRolesFor } from '../types';
 import DateRangeFilter from './DateRangeFilter';
 
 type RoleFilter = 'todos' | TeamRole;
@@ -22,7 +22,8 @@ function formatDayLabel(day: string) {
 
 export default function History() {
   const { user } = useAuth();
-  const canManageAllRoles = user?.role === 'dueno' || user?.role === 'administracion' || user?.role === 'operador';
+  const assignableRoles = assignableRolesFor(user?.role);
+  const canManageAllRoles = assignableRoles.length > 1;
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('todos');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -65,7 +66,7 @@ export default function History() {
       <div className="board-toolbar">
         {canManageAllRoles && (
           <div className="role-tabs">
-            {(['todos', ...TEAM_ROLES] as RoleFilter[]).map((r) => (
+            {(['todos', ...assignableRoles] as RoleFilter[]).map((r) => (
               <button
                 key={r}
                 className={`role-tab ${roleFilter === r ? 'role-tab-active' : ''}`}

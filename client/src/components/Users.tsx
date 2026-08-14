@@ -3,6 +3,7 @@ import { useAuth } from '../AuthContext';
 import { createUser, deleteUser, fetchUsers, updateUser } from '../api';
 import type { Role, User } from '../types';
 import { ROLE_LABELS } from '../types';
+import PasswordInput from './PasswordInput';
 
 const emptyForm = { name: '', email: '', password: '', role: 'operador' as Role };
 
@@ -118,8 +119,7 @@ export default function Users() {
           </label>
           <label className="field">
             <span>Contraseña</span>
-            <input
-              type="password"
+            <PasswordInput
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               minLength={6}
@@ -132,7 +132,7 @@ export default function Users() {
               <option value="operador">Operador</option>
               <option value="administracion">Administración</option>
               <option value="bodega">Bodega</option>
-              <option value="dueno">Dueño</option>
+              <option value="dueno">Gerencia</option>
             </select>
           </label>
           {error && <p className="login-error">{error}</p>}
@@ -182,7 +182,7 @@ export default function Users() {
                             <option value="operador">Operador</option>
                             <option value="administracion">Administración</option>
                             <option value="bodega">Bodega</option>
-                            <option value="dueno">Dueño</option>
+                            <option value="dueno">Gerencia</option>
                           </select>
                         ) : (
                           ROLE_LABELS[u.role]
@@ -196,8 +196,7 @@ export default function Users() {
                       <td className="users-actions">
                         {isEditing ? (
                           <>
-                            <input
-                              type="password"
+                            <PasswordInput
                               placeholder="Nueva contraseña (opcional)"
                               className="users-password-input"
                               value={editForm.password}

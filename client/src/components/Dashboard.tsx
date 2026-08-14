@@ -17,7 +17,7 @@ import {
 import { useAuth } from '../AuthContext';
 import { fetchKpis } from '../api';
 import type { Kpis, TeamRole } from '../types';
-import { ROLE_LABELS, TEAM_ROLES } from '../types';
+import { ROLE_LABELS, assignableRolesFor } from '../types';
 import DateRangeFilter from './DateRangeFilter';
 
 type RoleFilter = 'todos' | TeamRole;
@@ -32,7 +32,8 @@ function formatDay(iso: string) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const canManageAllRoles = user?.role === 'dueno' || user?.role === 'administracion' || user?.role === 'operador';
+  const assignableRoles = assignableRolesFor(user?.role);
+  const canManageAllRoles = assignableRoles.length > 1;
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('todos');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [kpis, setKpis] = useState<Kpis | null>(null);
@@ -83,7 +84,7 @@ export default function Dashboard() {
       <div className="board-toolbar">
         {canManageAllRoles && (
           <div className="role-tabs">
-            {(['todos', ...TEAM_ROLES] as RoleFilter[]).map((r) => (
+            {(['todos', ...assignableRoles] as RoleFilter[]).map((r) => (
               <button
                 key={r}
                 className={`role-tab ${roleFilter === r ? 'role-tab-active' : ''}`}

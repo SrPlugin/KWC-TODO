@@ -116,6 +116,35 @@
   gap: 12px;
 }
 
+.password-input-wrap {
+  position: relative;
+  display: flex;
+}
+
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 38px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: var(--red-dark);
+}
+
 .btn-primary {
   background: var(--red);
   color: #fff;
@@ -191,6 +220,23 @@
 .topbar-brand h1 {
   font-size: 1.1rem;
   margin: 0;
+}
+
+.topbar-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  text-transform: uppercase;
+  text-align: center;
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .topbar-title {
+    display: none;
+  }
 }
 
 .topbar-user {

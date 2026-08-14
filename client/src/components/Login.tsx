@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { login as loginRequest } from '../api';
 import { useAuth } from '../AuthContext';
+import PasswordInput from './PasswordInput';
 
 export default function Login() {
   const { login } = useAuth();
@@ -46,8 +47,7 @@ export default function Login() {
 
         <label className="field">
           <span>Contraseña</span>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
