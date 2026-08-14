@@ -150,11 +150,10 @@ function requireOwner(req, res, next) {
 }
 
 // Roles que un usuario supervisa por completo, sin importar quién creó/asignó la tarea.
-// Solo Gerencia supervisa las 3 áreas. Administración y Operador supervisan Bodega
-// (la ven, gestionan y crean tareas ahí), pero no se supervisan entre sí.
+// Solo Gerencia supervisa las 3 áreas. Administración y Operador pueden crear y gestionar
+// tareas de Bodega, pero solo ven las que ellos mismos crearon/asignaron, no todas.
 function supervisedRoles(user) {
   if (user.role === 'dueno') return TEAM_ROLES;
-  if (user.role === 'administracion' || user.role === 'operador') return ['bodega'];
   return [];
 }
 
@@ -168,19 +167,20 @@ function assignableRoles(user) {
   return [user.role];
 }
 
-// Un usuario puede ver/editar una tarea si es Gerencia, si supervisa el área de la tarea
-// (ej. Administración/Operador sobre Bodega), o si la tarea es propia: la creó él o
-// está asignada a él. Ya no hay visibilidad "de equipo" sobre tareas sin asignar de otros.
+// Un usuario puede ver/editar una tarea si es Gerencia, si supervisa el área de la tarea,
+// si la tarea es propia (la creó él o está asignada a él), o si la tarea es para todo su
+// rol: cuando no tiene asignado un usuario concreto, la ven todos los usuarios de ese rol.
 function canAccessTask(user, task) {
   if (user.role === 'dueno') return true;
   if (supervisedRoles(user).includes(task.role)) return true;
+  if (task.assigned_to === null && task.role === user.role) return true;
   return task.created_by === user.id || task.assigned_to === user.id;
 }
 
 // Construye el WHERE de /api/tasks y /api/kpis según lo que el usuario puede ver:
 // Gerencia ve todo (opcionalmente filtrado por rol). Cualquier otro ve las tareas de
-// sus roles supervisados completas, más las propias (creadas o asignadas a él),
-// opcionalmente acotado por el tab de rol seleccionado en el cliente.
+// sus roles supervisados completas, las propias (creadas o asignadas a él) y las que van
+// dirigidas a todo su rol (sin usuario asignado), opcionalmente acotado por el tab de rol.
 function roleScope(user, roleParam) {
   if (user.role === 'dueno') {
     if (roleParam && TEAM_ROLES.includes(roleParam)) {
@@ -200,6 +200,9 @@ function roleScope(user, roleParam) {
   params.push(user.id);
   parts.push('tasks.assigned_to = ?');
   params.push(user.id);
+  // Tarea dirigida a todo el rol (sin asignar a nadie en concreto): la ven todos los del rol.
+  parts.push('(tasks.assigned_to IS NULL AND tasks.role = ?)');
+  params.push(user.role);
 
   let clause = `(${parts.join(' OR ')})`;
   if (roleParam && TEAM_ROLES.includes(roleParam)) {
@@ -642,6 +645,8 @@ app.get('/api/history', requireUser, (req, res) => {
     params.push(user.id);
     parts.push('tasks.assigned_to = ?');
     params.push(user.id);
+    parts.push('(tasks.assigned_to IS NULL AND tasks.role = ?)');
+    params.push(user.role);
 
     let clause = `(${parts.join(' OR ')})`;
     if (roleParam && TEAM_ROLES.includes(roleParam)) {

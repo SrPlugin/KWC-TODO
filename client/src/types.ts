@@ -5,9 +5,10 @@ export type Priority = 'baja' | 'media' | 'alta';
 
 export const TEAM_ROLES: TeamRole[] = ['administracion', 'operador', 'bodega'];
 
-// Roles sobre los que un usuario puede crear/ver/asignar tareas más allá de las suyas propias.
-// Gerencia gestiona las 3 áreas. Administración y Operador se pueden asignar tareas entre sí
-// y además gestionan Bodega por completo. Bodega solo gestiona lo suyo.
+// Roles a los que un usuario puede crear/asignar tareas. Gerencia a las 3 áreas.
+// Administración y Operador se pueden asignar tareas entre sí y también a Bodega,
+// pero solo ven las tareas de Bodega que ellos mismos crearon/asignaron.
+// Bodega solo gestiona lo suyo.
 export function assignableRolesFor(role: Role | undefined): TeamRole[] {
   if (role === 'dueno') return TEAM_ROLES;
   if (role === 'administracion') return ['administracion', 'operador', 'bodega'];
