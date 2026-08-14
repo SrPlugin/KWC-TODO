@@ -60,15 +60,6 @@ export default function Login() {
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading ? 'Ingresando…' : 'Ingresar'}
         </button>
-
-        <div className="login-hint">
-          <p>Cuentas demo:</p>
-          <ul>
-            <li>dueno@empresa.com / dueno123</li>
-            <li>admin@empresa.com / admin123</li>
-            <li>operador@empresa.com / operador123</li>
-          </ul>
-        </div>
       </form>
     </div>
   );
