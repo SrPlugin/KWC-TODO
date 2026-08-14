@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+server/data.db
+server/data.db-journal
+server/data.db-wal
+server/data.db-shm
+server/data/
+server/uploads/*
+!server/uploads/.gitkeep
+.git
+.gitignore
+docs
+*.md

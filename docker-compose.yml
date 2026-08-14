@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    image: kwc-todo:latest
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      FRONTEND_ORIGIN: https://todokwc.bytetechdev.com
+      # Cuenta real del dueño creada en el primer arranque (recomendado en producción).
+      # Si se define, NO se crean los usuarios demo.
+      # OWNER_EMAIL: dueno@tuempresa.com
+      # OWNER_PASSWORD: cambia-esto-por-una-clave-fuerte
+      # OWNER_NAME: Nombre del dueño
+      #
+      # Si prefieres arrancar sin dueño real y sin usuarios demo:
+      # SEED_DEMO_USERS: "false"
+    volumes:
+      - kwc_data:/app/server/data
+
+volumes:
+  kwc_data:
