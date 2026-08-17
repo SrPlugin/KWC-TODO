@@ -149,12 +149,15 @@ function requireOwner(req, res, next) {
   next();
 }
 
-// Roles que un usuario supervisa por completo, sin importar quién creó/asignó la tarea.
-// Solo Gerencia supervisa las 3 áreas. Administración y Operador pueden crear y gestionar
-// tareas de Bodega, pero solo ven las que ellos mismos crearon/asignaron, no todas.
+// Roles que un usuario supervisa por completo, sin importar quién creó/asignó la tarea
+// ni a quién se asignó específicamente. Gerencia supervisa las 3 áreas. Bodega es la
+// única excepción entre el resto: TODOS (Administración, Operador y el propio Bodega)
+// supervisan Bodega por completo, la vea quien la vea. Entre Administración y Operador
+// no hay supervisión: cada uno solo ve lo propio, lo que se comparte con todo su rol, o
+// lo que se le asigna a él en concreto (ver canAccessTask).
 function supervisedRoles(user) {
   if (user.role === 'dueno') return TEAM_ROLES;
-  return [];
+  return ['bodega'];
 }
 
 // A qué roles puede crear/asignar tareas un usuario. Gerencia a cualquiera de las 3.
@@ -167,9 +170,11 @@ function assignableRoles(user) {
   return [user.role];
 }
 
-// Un usuario puede ver/editar una tarea si es Gerencia, si supervisa el área de la tarea,
-// si la tarea es propia (la creó él o está asignada a él), o si la tarea es para todo su
-// rol: cuando no tiene asignado un usuario concreto, la ven todos los usuarios de ese rol.
+// Un usuario puede ver/editar una tarea si es Gerencia, si supervisa el área de la tarea
+// (solo Bodega se supervisa a sí misma), si la tarea se compartió con todo su rol (sin
+// asignar a una persona concreta, mismo rol que la tarea), o si la tarea es propia (la
+// creó él o se le asignó a él en concreto). No hay visibilidad automática entre
+// Administración, Operador y Bodega más allá de esos dos mecanismos de compartir.
 function canAccessTask(user, task) {
   if (user.role === 'dueno') return true;
   if (supervisedRoles(user).includes(task.role)) return true;
@@ -178,9 +183,10 @@ function canAccessTask(user, task) {
 }
 
 // Construye el WHERE de /api/tasks y /api/kpis según lo que el usuario puede ver:
-// Gerencia ve todo (opcionalmente filtrado por rol). Cualquier otro ve las tareas de
-// sus roles supervisados completas, las propias (creadas o asignadas a él) y las que van
-// dirigidas a todo su rol (sin usuario asignado), opcionalmente acotado por el tab de rol.
+// Gerencia ve todo (opcionalmente filtrado por rol). Cualquier otro ve Bodega completa si
+// es de Bodega (rol supervisado), las propias (creadas o asignadas a él) y las que se
+// comparten con todo su rol (sin asignar a nadie en concreto), opcionalmente acotado por
+// el tab de rol.
 function roleScope(user, roleParam) {
   if (user.role === 'dueno') {
     if (roleParam && TEAM_ROLES.includes(roleParam)) {
@@ -200,7 +206,7 @@ function roleScope(user, roleParam) {
   params.push(user.id);
   parts.push('tasks.assigned_to = ?');
   params.push(user.id);
-  // Tarea dirigida a todo el rol (sin asignar a nadie en concreto): la ven todos los del rol.
+  // Tarea compartida con todo el rol (sin asignar a nadie en concreto): la ven todos los del rol.
   parts.push('(tasks.assigned_to IS NULL AND tasks.role = ?)');
   params.push(user.role);
 
