@@ -6,7 +6,12 @@ export default defineConfig({
   plugins: [
     react(),
     legacy({
-      targets: ['defaults', 'not IE 11'],
+      // 'defaults' resolves to today's very recent browsers, not old ones.
+      // Explicitly cover old Android WebView browsers (e.g. Chrome 65 /
+      // Android 7.1 found on cheap Smart TV boxes) so the legacy chunk is
+      // actually transpiled down far enough for them to run.
+      targets: ['defaults', 'Chrome >= 49', 'Android >= 5', 'not IE 11'],
+      additionalLegacyPolyfills: ['whatwg-fetch'],
     }),
   ],
   server: {
